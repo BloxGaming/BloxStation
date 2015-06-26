@@ -23,6 +23,8 @@
 
 #define RADIATION_SPEED_COEFFICIENT 0.1
 
+/var/radcounter = 0
+
 /mob/living/carbon/human
 	var/oxygen_alert = 0
 	var/phoron_alert = 0
@@ -256,6 +258,7 @@
 
 	proc/handle_mutations_and_radiation()
 
+		blox_handle_rad()
 		if(species.flags & IS_SYNTHETIC) //Robots don't suffer from mutations or radloss.
 			return
 
@@ -272,7 +275,7 @@
 				speech_problem_flag = 1
 				gene.OnMobLife(src)
 
-		radiation = Clamp(radiation,0,100)
+		/*radiation = Clamp(radiation,0,100)
 
 		if (radiation)
 			var/datum/organ/internal/diona/nutrients/rad_organ = locate() in internal_organs
@@ -323,7 +326,106 @@
 				updatehealth()
 				if(organs.len)
 					var/datum/organ/external/O = pick(organs)
-					if(istype(O)) O.add_autopsy_data("Radiation Poisoning", damage)
+					if(istype(O)) O.add_autopsy_data("Radiation Poisoning", damage)*/
+
+	proc/blox_handle_rad()
+		if(radcounter%10==0)
+			switch(alpharad)
+				if(1 to 50)
+					if(prob(5))
+						src << "<span class='warning'>Your skin tingles!</span>"
+					adjustFireLoss(0.1)
+				if(51 to 100)
+					if(prob(5))
+						src << "<span class='warning'>Red patches appear on your skin!</span>"
+					adjustFireLoss(1)
+				if(101 to INFINITY)
+					if(prob(5))
+						src << "<span class='warning'>Small burns appear on your skin!</span>"
+					adjustFireLoss(2 * (alpharad/101))
+					if(organs.len)
+						var/datum/organ/external/O = pick(organs)
+						if(istype(O)) O.add_autopsy_data("Severe Alpha Radiation Exposure", 2 * (alpharad/101))
+			switch(betarad)
+				if(1 to 50)
+					if(prob(5))
+						src << "<span class='warning'>Your skin tingles and itches!</span>"
+					if(prob(50))
+						adjustFireLoss(0.5)
+				if(51 to 100)
+					if(prob(5))
+						src << "<span class='warning'>Your skin feels like its being warmed from the inside!</span>"
+					if(prob(75))
+						adjustFireLoss(2)
+				if(101 to 2999)
+					if(prob(5))
+						src << "<span class='warning'>Strange burns painfully appear on your skin!</span>"
+					adjustFireLoss(3)
+					if(organs.len)
+						var/datum/organ/external/O = pick(organs)
+						if(istype(O)) O.add_autopsy_data("Positron or Beta(+) Radiation Exposure", 3)
+				if(3000 to INFINITY)
+					if(prob(75))
+						src << "<span class='warning'>You feel your insides swelling and rapidly heating!</span>"
+					else
+						src.gib()
+			switch(gammarad)
+				if(1 to 50)
+					if(prob(10))
+						src << "<span class='warning'>Your head hurts.</span>"
+				if(50 to 100)
+					if(prob(10))
+						src << "<span class='warning'>You feel naseous.</span>"
+					if(prob(75))
+						adjustToxLoss(1)
+				if(100 to 1799)
+					if(prob(10))
+						src << "<span class='warning'>Your skin burns slightly, you feel horribly sick.</span>"
+					adjustCloneLoss(5 * gammarad/100)
+					if(organs.len)
+						var/datum/organ/external/O = pick(organs)
+						if(istype(O)) O.add_autopsy_data("Gamma Radiation Poisoning", 5 * gammarad/100)
+				if(1800 to 3000)
+					adjustCloneLoss(10 * gammarad/1800)
+					if(!(paralysis != 0))
+						src << "<span class='warning'>You pass out suddenly.</span>"
+						SetParalysis(30)
+						if(organs.len)
+							var/datum/organ/external/O = pick(organs)
+							if(istype(O)) O.add_autopsy_data("Acute Gamma Radiation Poisoning", 10 * gammarad/100)
+				if(3000 to INFINITY)
+					adjustCloneLoss(250)
+					if(organs.len)
+						var/datum/organ/external/O = pick(organs)
+						if(istype(O)) O.add_autopsy_data("Fatal Gamma Radiation Exposure", 10 * gammarad/100)
+			if(deltarad > 0)
+				adjustCloneLoss(deltarad)
+				if(organs.len)
+					var/datum/organ/external/O = pick(organs)
+					if(istype(O)) O.add_autopsy_data("Extreme Cellular Degredation", deltarad)
+			if(nray > 0)
+				adjustCloneLoss(nray)
+				nray = 2 ** nray
+				if(organs.len)
+					var/datum/organ/external/O = pick(organs)
+					if(istype(O)) O.add_autopsy_data("Neutron Radiation", nray)
+				for(var/mob/living/carbon/human/H in viewers(src, null))
+					H.apply_effect(nray, IRRADIATE, 0, "neutron")
+			if(radiation > 0)
+				gammarad += radiation
+				radiation = 0
+			if(alpharad > 0)
+				alpharad -= 1 * RADIATION_SPEED_COEFFICIENT
+			if(betarad > 0)
+				betarad -= 2 * RADIATION_SPEED_COEFFICIENT
+			if(gammarad > 0)
+				gammarad -= 3 * RADIATION_SPEED_COEFFICIENT
+			if(deltarad > 0)
+				deltarad -= 4 * RADIATION_SPEED_COEFFICIENT
+		updatehealth()
+		radcounter++
+
+			//more types to come soon
 
 	proc/breathe()
 		if(istype(loc, /obj/machinery/atmospherics/unary/cryo_cell)) return
